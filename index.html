@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta de Premios</title>
+    <!-- Google Fonts & Confetti Library -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1f1c2c, #928DAB);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 450px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        p.subtitle {
+            font-size: 0.9rem;
+            color: #ddd;
+            margin-bottom: 25px;
+        }
+
+        .roulette-wrapper {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin: 0 auto 25px auto;
+        }
+
+        .pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid #ff4757;
+            z-index: 10;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 6px solid #fff;
+        }
+
+        .spin-btn {
+            background: linear-gradient(135deg, #ff4757, #ff6b81);
+            color: white;
+            border: none;
+            padding: 14px 45px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(255, 71, 87, 0.4);
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .spin-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 71, 87, 0.6);
+        }
+
+        .spin-btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .spin-btn:disabled {
+            background: #a4b0be;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Modal de Resultado */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+            padding: 20px;
+        }
+
+        .modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: #2f3542;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 320px;
+            width: 100%;
+            border: 2px solid rgba(255,255,255,0.1);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            transform: scale(0.8);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-icon {
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .modal-text {
+            font-size: 1rem;
+            color: #dfe4ea;
+            margin-bottom: 20px;
+        }
+
+        .modal-btn {
+            background: #2ed573;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .modal-btn:hover {
+            background: #26af5f;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🎡 Ruleta de Premios</h1>
+        <p class="subtitle">¡Gira y descubre qué premio te ha tocado hoy!</p>
+        
+        <div class="roulette-wrapper">
+            <div class="pointer"></div>
+            <canvas id="wheel" width="500" height="500"></canvas>
+        </div>
+
+        <button id="spinBtn" class="spin-btn" onclick="spinWheel()">Girar</button>
+    </div>
+
+    <!-- Modal -->
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <div id="modalIcon" class="modal-icon">🎉</div>
+            <h2 id="modalTitle" class="modal-title">¡Felicidades!</h2>
+            <p id="modalText" class="modal-text">Has ganado...</p>
+            <button class="modal-btn" onclick="closeModal()">¡Genial!</button>
+        </div>
+    </div>
+
+    <script>
+        const sectors = [
+            { text: "5% off", color: "#ff4757", type: "prize" },
+            { text: "Vuelve a tirar", color: "#ffa502", type: "retry" },
+            { text: "10%", color: "#2ed573", type: "prize" },
+            { text: "Game over", color: "#ff6b81", type: "lost" },
+            { text: "Premio", color: "#1e90ff", type: "prize" },
+            { text: "Vuelve a Tirar", color: "#eccc68", type: "retry" },
+            { text: "15% off", color: "#3742fa", type: "prize" },
+            { text: "Vuelva a tirar", color: "#ff7f50", type: "retry" }
+        ];
+
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = document.getElementById('spinBtn');
+        const modal = document.getElementById('resultModal');
+        
+        const totalSectors = sectors.length;
+        const arc = (2 * Math.PI) / totalSectors;
+        let startAngle = 0;
+        let angVelocity = 0;
+        let isSpinning = false;
+        let lastSectorIndex = null;
+
+        // Configuración de Audio Web API
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playTickSound() {
+            if (!audioCtx) return;
+            try {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.04);
+                
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.04);
+            } catch (e) {}
+        }
+
+        function playWinSound() {
+            if (!audioCtx) return;
+            try {
+                let now = audioCtx.currentTime;
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.setValueAtTime(450, now + 0.1);
+                osc.frequency.setValueAtTime(600, now + 0.2);
+                
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(now + 0.5);
+            } catch (e) {}
+        }
+
+        function drawSector(sector, i) {
+            const angle = startAngle + i * arc;
+            ctx.save();
+            
+            // Dibujar porción
+            ctx.beginPath();
+            ctx.fillStyle = sector.color;
+            ctx.moveTo(250, 250);
+            ctx.arc(250, 250, 240, angle, angle + arc, false);
+            ctx.lineTo(250, 250);
+            ctx.fill();
+            
+            // Borde del sector
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "rgba(255,255,255,0.3)";
+            ctx.stroke();
+
+            // Dibujar texto
+            ctx.save();
+            ctx.translate(250, 250);
+            ctx.rotate(angle + arc / 2);
+            ctx.textAlign = "right";
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 20px 'Poppins', sans-serif";
+            ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+            ctx.shadowBlur = 4;
+            ctx.fillText(sector.text, 210, 8);
+            
+            ctx.restore();
+            ctx.restore();
+        }
+
+        function drawWheel() {
+            ctx.clearRect(0, 0, 500, 500);
+            for (let i = 0; i < totalSectors; i++) {
+                drawSector(sectors[i], i);
+            }
+
+            // Círculo central decorativo
+            ctx.beginPath();
+            ctx.arc(250, 250, 35, 0, 2 * Math.PI);
+            ctx.fillStyle = "#ffffff";
+            ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
+            ctx.shadowBlur = 10;
+            ctx.fill();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = "#f1f2f6";
+            ctx.stroke();
+        }
+
+        function spinWheel() {
+            if (isSpinning) return;
+            initAudio();
+            isSpinning = true;
+            spinBtn.disabled = true;
+
+            // Velocidad aleatoria inicial fuerte
+            angVelocity = Math.random() * 0.2 + 0.35;
+            rotateWheel();
+        }
+
+        function rotateWheel() {
+            startAngle += angVelocity;
+            angVelocity *= 0.982; // Factor de fricción/desaceleración suave
+
+            // Calcular en qué sector está la flecha superior (ángulo 3/2 * PI)
+            let normalizedAngle = (startAngle + Math.PI / 2) % (2 * Math.PI);
+            let currentSectorIndex = Math.floor(totalSectors - (normalizedAngle / (2 * Math.PI)) * totalSectors) % totalSectors;
+
+            if (currentSectorIndex !== lastSectorIndex) {
+                playTickSound();
+                lastSectorIndex = currentSectorIndex;
+            }
+
+            drawWheel();
+
+            if (angVelocity < 0.002) {
+                isSpinning = false;
+                spinBtn.disabled = false;
+                showResult(currentSectorIndex);
+            } else {
+                requestAnimationFrame(rotateWheel);
+            }
+        }
+
+        function showResult(index) {
+            const selected = sectors[index];
+            const titleEl = document.getElementById('modalTitle');
+            const textEl = document.getElementById('modalText');
+            const iconEl = document.getElementById('modalIcon');
+
+            if (selected.type === 'prize') {
+                iconEl.innerText = "🎉";
+                titleEl.innerText = "¡Excelente!";
+                textEl.innerText = `¡Has ganado: ${selected.text}!`;
+                playWinSound();
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            } else if (selected.type === 'retry') {
+                iconEl.innerText = "🔄";
+                titleEl.innerText = "¡Casi casi!";
+                textEl.innerText = "Te ha tocado: Vuelve a tirar";
+            } else {
+                iconEl.innerText = "😢";
+                titleEl.innerText = "¡Oh no!";
+                textEl.innerText = "Te ha tocado: Game Over";
+            }
+
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            modal.classList.remove('active');
+        }
+
+        // Dibujar la ruleta al cargar la página
+        drawWheel();
+    </script>
+</body>
+</html>
